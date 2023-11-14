@@ -21,6 +21,12 @@ impl SudokuBoard {
     pub fn generate() -> Self {
         let mut board = [[0; SUDOKU_SIZE]; SUDOKU_SIZE];
 
+        for row in 0..SUDOKU_SIZE {
+            for col in 0..SUDOKU_SIZE {
+                board[row][col] = 0;
+            }
+        }
+
         Self {
             board
         }
@@ -186,7 +192,7 @@ impl SudokuBoard {
             }
         }
 
-        println!("\n{}", line0);
+        println!("{}", line0);
         for r in 0..SUDOKU_SIZE {
             for (c, v) in nums[r].iter().zip(line1.split(".")) {
                 print!("{}{}", v, c);
