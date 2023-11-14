@@ -1,7 +1,7 @@
 use crate::board::SUDOKU_SIZE;
 
 #[derive(Copy, Clone)]
-struct Domain {
+pub struct Domain {
     state: [bool; SUDOKU_SIZE],
 }
 
@@ -33,9 +33,15 @@ impl Domain {
 }
 
 #[derive(Copy, Clone)]
-enum Tile {
+pub enum Tile {
     Collapsed(usize),
     Uncollapsed(Domain),
+}
+
+impl Default for Tile {
+    fn default() -> Self {
+        Tile::Uncollapsed(Domain::default())
+    }
 }
 
 #[cfg(test)]

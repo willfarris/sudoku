@@ -1,17 +1,22 @@
+use crate::tile::{Tile, Domain};
+
 pub const SUDOKU_BASE: usize = 3;
 pub const SUDOKU_SIZE: usize = SUDOKU_BASE * SUDOKU_BASE;
 
 pub struct SudokuBoard {
-    board: [[usize; SUDOKU_SIZE]; SUDOKU_SIZE],
+    board: [[Tile; SUDOKU_SIZE]; SUDOKU_SIZE],
 }
 
 impl SudokuBoard {
     pub fn from_array(array: [usize; SUDOKU_SIZE * SUDOKU_SIZE]) -> Self {
-        let mut board = [[0; SUDOKU_SIZE]; SUDOKU_SIZE];
+        let mut board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
         for row in 0..SUDOKU_SIZE {
             for col in 0..SUDOKU_SIZE {
                 let index = row * SUDOKU_SIZE + col;
-                board[row][col] = array[index];
+                match array[index] {
+                    0 => {},
+                    c => board[row][col] = Tile::Collapsed(c),
+                }
             }
         }
 
@@ -19,13 +24,7 @@ impl SudokuBoard {
     }
 
     pub fn generate() -> Self {
-        let mut board = [[0; SUDOKU_SIZE]; SUDOKU_SIZE];
-
-        for row in 0..SUDOKU_SIZE {
-            for col in 0..SUDOKU_SIZE {
-                board[row][col] = 0;
-            }
-        }
+        let mut board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
 
         Self {
             board
@@ -37,14 +36,16 @@ impl SudokuBoard {
         for row in 0..SUDOKU_SIZE {
             let mut present = [false; SUDOKU_SIZE];
             for col in 0..SUDOKU_SIZE {
-                let val = self.board[row][col];
-                if val == 0 {
-                    continue;
+                let tile = self.board[row][col];
+                match tile {
+                    Tile::Uncollapsed(_) => continue,
+                    Tile::Collapsed(val) => {
+                        if present[val - 1] {
+                            return false;
+                        }
+                        present[val - 1] = true;
+                    }
                 }
-                if present[val - 1] {
-                    return false;
-                }
-                present[val - 1] = true;
             }
         }
 
@@ -52,14 +53,16 @@ impl SudokuBoard {
         for col in 0..SUDOKU_SIZE {
             let mut present = [false; SUDOKU_SIZE];
             for row in 0..SUDOKU_SIZE {
-                let val = self.board[row][col];
-                if val == 0 {
-                    continue;
+                let tile = self.board[row][col];
+                match tile {
+                    Tile::Uncollapsed(_) => continue,
+                    Tile::Collapsed(val) => {
+                        if present[val - 1] {
+                            return false;
+                        }
+                        present[val - 1] = true;
+                    }
                 }
-                if present[val - 1] {
-                    return false;
-                }
-                present[val - 1] = true;
             }
         }
 
@@ -69,14 +72,18 @@ impl SudokuBoard {
                 let mut present = [false; SUDOKU_SIZE];
                 for r in 0..SUDOKU_BASE {
                     for c in 0..SUDOKU_BASE {
-                        let val = self.board[sr * SUDOKU_BASE + r][sc * SUDOKU_BASE + c];
-                        if val == 0 {
-                            continue;
+                        let row = sr * SUDOKU_BASE + r;
+                        let col = sc * SUDOKU_BASE + c;
+                        let tile = self.board[row][col];
+                        match tile {
+                            Tile::Uncollapsed(_) => continue,
+                            Tile::Collapsed(val) => {
+                                if present[val - 1] {
+                                    return false;
+                                }
+                                present[val - 1] = true;
+                            }
                         }
-                        if present[val - 1] {
-                            return false;
-                        }
-                        present[val - 1] = true;
                     }
                 }
             }
@@ -88,7 +95,7 @@ impl SudokuBoard {
     pub fn is_complete(&self) -> bool {
         for row in 0..SUDOKU_SIZE {
             for col in 0..SUDOKU_SIZE {
-                if self.board[row][col] == 0 {
+                if let Tile::Uncollapsed(_) = self.board[row][col] {
                     return false;
                 }
             }
@@ -99,15 +106,19 @@ impl SudokuBoard {
     fn is_valid_assignment(&self, val: usize, row: usize, col: usize) -> bool {
         // Row
         for c in 0..SUDOKU_SIZE {
-            if self.board[row][c] == val {
-                return false;
+            if let Tile::Collapsed(tile) = self.board[row][c] {
+                if tile == val {
+                    return false;
+                }
             }
         }
 
         // Col
         for r in 0..SUDOKU_SIZE {
-            if self.board[r][col] == val {
-                return false;
+            if let Tile::Collapsed(tile) = self.board[r][col] {
+                if tile == val {
+                    return false;
+                }
             }
         }
 
@@ -116,8 +127,12 @@ impl SudokuBoard {
         let sc = col / SUDOKU_BASE;
         for r in 0..SUDOKU_BASE {
             for c in 0..SUDOKU_BASE {
-                if self.board[sr * SUDOKU_BASE + r][sc * SUDOKU_BASE + c] == val {
-                    return false;
+                let cur_row = sr * SUDOKU_BASE + r;
+                let cur_col = sc * SUDOKU_BASE + c;
+                if let Tile::Collapsed(tile) = self.board[cur_row][cur_col] {
+                    if tile == val {
+                        return false;
+                    }
                 }
             }
         }
@@ -131,7 +146,7 @@ impl SudokuBoard {
         }
         for row in 0..SUDOKU_SIZE {
             for col in 0..SUDOKU_SIZE {
-                if self.board[row][col] != 0 {
+                if let Tile::Collapsed(_) = self.board[row][col] {
                     continue;
                 }
 
@@ -145,12 +160,12 @@ impl SudokuBoard {
                     //self.board[row][col] = s;
                     if self.is_valid_assignment(s, row, col) {
                         //if self.is_valid() {
-                        self.board[row][col] = s;
+                        self.board[row][col] = Tile::Collapsed(s);
                         if self.solve_brute_force() {
                             return true;
                         }
                     }
-                    self.board[row][col] = 0;
+                    self.board[row][col] = Tile::default();
                 }
                 return false;
             }
@@ -186,8 +201,8 @@ impl SudokuBoard {
         for (row_num, row) in board.iter().enumerate() {
             for (col_num, tile) in row.iter().enumerate() {
                 nums[row_num][col_num] = match tile {
-                    0 => ' ',
-                    v => char::from_digit(*v as u32, 10).unwrap(),
+                    Tile::Uncollapsed(_) => ' ',
+                    Tile::Collapsed(v) => char::from_digit(*v as u32, 10).unwrap(),
                 }
             }
         }
