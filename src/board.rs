@@ -1,4 +1,4 @@
-use crate::tile::{Tile, Domain};
+use crate::tile::{Domain, Tile};
 
 pub const SUDOKU_BASE: usize = 3;
 pub const SUDOKU_SIZE: usize = SUDOKU_BASE * SUDOKU_BASE;
@@ -14,7 +14,7 @@ impl SudokuBoard {
             for col in 0..SUDOKU_SIZE {
                 let index = row * SUDOKU_SIZE + col;
                 match array[index] {
-                    0 => {},
+                    0 => {}
                     c => board[row][col] = Tile::Collapsed(c),
                 }
             }
@@ -25,10 +25,7 @@ impl SudokuBoard {
 
     pub fn generate() -> Self {
         let mut board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
-
-        Self {
-            board
-        }
+        Self { board }
     }
 
     pub fn is_valid(&self) -> bool {
@@ -140,22 +137,74 @@ impl SudokuBoard {
         true
     }
 
+    fn is_in_domain(&self, val: usize, row: usize, col: usize) -> bool {
+        match self.board[row][col] {
+            Tile::Collapsed(_) => false,
+            Tile::Uncollapsed(domain) => domain.is_in_domain(val)
+        }
+    }
+
+
+    fn collapse_tile(&mut self, val: usize, row: usize, col: usize) -> Vec<(usize, usize)> {
+        let mut modified = Vec::new();
+
+        // Update row
+        for r in 0..SUDOKU_SIZE {
+            if self.is_in_domain(val, r, col) {
+                modified.push((r, col));
+            }
+        }
+
+        for c in 0..SUDOKU_SIZE {
+            if self.is_in_domain(val, row, c) {
+                modified.push((row, c));
+            }
+        }
+        
+        let subgrid_row = row / SUDOKU_BASE;
+        let subgrid_col = col / SUDOKU_BASE;
+        for r in 0..SUDOKU_BASE {
+            for c in 0..SUDOKU_BASE {
+                let s_row = subgrid_row*SUDOKU_BASE + r;
+                let s_col = subgrid_col*SUDOKU_BASE + c;
+                if s_row != row && s_col != col && self.is_in_domain(val, s_row, s_col) {
+                    modified.push((s_row, s_col));
+                }
+            }
+        }
+
+        modified
+
+    }
+
+    fn restore_domain(&mut self, val: usize, collapsed: Vec<(usize, usize)>) {
+        for (row, col) in collapsed {
+            if let Tile::Uncollapsed(domain) = &mut self.board[row][col] {
+                domain.add_to_domain(val);
+            }
+        }
+
+    }
+
     pub fn solve_csp(&mut self) -> bool {
         if self.is_complete() {
             return true;
         }
 
-        let (row, col) = self.get_lowest_entropy();
+        let (row, col) = (0,0);//self.get_lowest_entropy();
+        
+        let valid = match self.board[row][col] {
+            Tile::Collapsed(_) => return false,
+            Tile::Uncollapsed(domain) => domain.get_valid(),
+        };
 
-        for val in self.board[row][col].get_valid() {
+        for val in valid {
             if self.is_valid_assignment(val, row, col) {
-                
-                //self.board[row][col] = Tile::Collapsed(val);
-                todo!("collapse, storing propagated state");
+                let collapsed_states = self.collapse_tile(val, row, col);
                 if self.solve_csp() {
                     return true;
                 }
-                todo!("Restore previous state on failure");
+                self.restore_domain(val, collapsed_states);
             }
         }
 
