@@ -14,6 +14,12 @@ impl Default for Domain {
 }
 
 impl Domain {
+    pub fn from_value(val: usize) -> Self {
+        let mut domain = Self::default();
+        domain.state[val-1] = true;
+        domain
+    }
+
     pub fn get_valid(&self) -> Vec<usize> {
         self.state
             .iter()
@@ -25,17 +31,16 @@ impl Domain {
             .collect()
     }
 
-    pub fn mark_invalid(&mut self, v: usize) {
-        assert!(v < SUDOKU_SIZE + 1);
-        assert!(v > 0);
-        self.state[v - 1] = false;
+    // Returns true on modify, false if val is already invalid
+    pub fn mark_invalid(&mut self, val: usize) -> bool {
+        if !self.state[val-1] {
+            return false;
+        }
+        self.state[val-1] = false;
+        true
     }
 
-    pub fn is_in_domain(&self, val: usize) -> bool {
-        self.state[val-1]
-    }
-
-    pub fn add_to_domain(&mut self, val: usize) {
+    pub fn mark_valid(&mut self, val: usize) {
         self.state[val-1] = true;
     }
 }

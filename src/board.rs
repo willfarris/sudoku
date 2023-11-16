@@ -24,7 +24,8 @@ impl SudokuBoard {
     }
 
     pub fn generate() -> Self {
-        let mut board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
+        let board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
+        // TODO: populate board during generation
         Self { board }
     }
 
@@ -137,27 +138,48 @@ impl SudokuBoard {
         true
     }
 
-    fn is_in_domain(&self, val: usize, row: usize, col: usize) -> bool {
-        match self.board[row][col] {
-            Tile::Collapsed(_) => false,
-            Tile::Uncollapsed(domain) => domain.is_in_domain(val)
+    fn get_lowest_entropy(&self) -> (usize, usize) {
+        let mut lowest_entropy = SUDOKU_SIZE+1;
+        let mut lowest_index = (usize::MAX, usize::MAX);
+        for row in 0..SUDOKU_SIZE {
+            for col in 0..SUDOKU_SIZE {
+                if let Tile::Uncollapsed(domain) = &self.board[row][col] {
+                    let cur_entropy = domain.get_valid().len();
+                    if cur_entropy < lowest_entropy {
+                        lowest_entropy = cur_entropy;
+                        lowest_index = (row, col);
+                    }
+                }
+            }
         }
+
+        if let (usize::MAX, usize::MAX) = lowest_index {
+            panic!("Board not complete but no uncollapsed tiles!");
+        }
+        lowest_index
     }
 
-
-    fn collapse_tile(&mut self, val: usize, row: usize, col: usize) -> Vec<(usize, usize)> {
+    fn propagate_collapse(&mut self, val: usize, row: usize, col: usize) -> Vec<(usize, usize)> {
         let mut modified = Vec::new();
 
         // Update row
         for r in 0..SUDOKU_SIZE {
-            if self.is_in_domain(val, r, col) {
-                modified.push((r, col));
+            if let Tile::Uncollapsed(domain) = &mut self.board[r][col] {
+                if r != row {
+                    if domain.mark_invalid(val) {
+                        modified.push((r, col));
+                    }
+                }
             }
         }
 
         for c in 0..SUDOKU_SIZE {
-            if self.is_in_domain(val, row, c) {
-                modified.push((row, c));
+            if let Tile::Uncollapsed(domain) = &mut self.board[row][c] {
+                if c != col {
+                    if domain.mark_invalid(val) {
+                        modified.push((row, c));
+                    }
+                }
             }
         }
         
@@ -167,8 +189,13 @@ impl SudokuBoard {
             for c in 0..SUDOKU_BASE {
                 let s_row = subgrid_row*SUDOKU_BASE + r;
                 let s_col = subgrid_col*SUDOKU_BASE + c;
-                if s_row != row && s_col != col && self.is_in_domain(val, s_row, s_col) {
-                    modified.push((s_row, s_col));
+                if s_row == row || s_col == col {
+                    continue;
+                }
+                if let Tile::Uncollapsed(domain) = &mut self.board[s_row][s_col] {
+                    if domain.mark_invalid(val) {
+                        modified.push((s_row, s_col));
+                    }
                 }
             }
         }
@@ -180,30 +207,43 @@ impl SudokuBoard {
     fn restore_domain(&mut self, val: usize, collapsed: Vec<(usize, usize)>) {
         for (row, col) in collapsed {
             if let Tile::Uncollapsed(domain) = &mut self.board[row][col] {
-                domain.add_to_domain(val);
+                domain.mark_valid(val);
+            } else {
+                self.board[row][col] = Tile::Uncollapsed(Domain::from_value(val));
             }
         }
 
     }
 
     pub fn solve_csp(&mut self) -> bool {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        self.print(true);
+        
         if self.is_complete() {
             return true;
         }
 
-        let (row, col) = (0,0);//self.get_lowest_entropy();
+        let (row, col) = self.get_lowest_entropy();
         
         let valid = match self.board[row][col] {
-            Tile::Collapsed(_) => return false,
+            Tile::Collapsed(_) => panic!("get_lowest_entropy() should never return a collapsed tile"),
             Tile::Uncollapsed(domain) => domain.get_valid(),
         };
 
         for val in valid {
             if self.is_valid_assignment(val, row, col) {
-                let collapsed_states = self.collapse_tile(val, row, col);
+                let mut saved_domain = if let Tile::Uncollapsed(domain) = &self.board[row][col] {
+                    domain.clone()
+                } else {
+                    panic!("tile was uncollapsed, but now it's not: ({}, {})", row, col);
+                };
+                self.board[row][col] = Tile::Collapsed(val);
+                let collapsed_states = self.propagate_collapse(val, row, col);
                 if self.solve_csp() {
                     return true;
                 }
+                saved_domain.mark_invalid(val);
+                self.board[row][col] = Tile::Uncollapsed(saved_domain);
                 self.restore_domain(val, collapsed_states);
             }
         }
