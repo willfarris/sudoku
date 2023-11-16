@@ -140,6 +140,28 @@ impl SudokuBoard {
         true
     }
 
+    pub fn solve_csp(&mut self) -> bool {
+        if self.is_complete() {
+            return true;
+        }
+
+        let (row, col) = self.get_lowest_entropy();
+
+        for val in self.board[row][col].get_valid() {
+            if self.is_valid_assignment(val, row, col) {
+                
+                //self.board[row][col] = Tile::Collapsed(val);
+                todo!("collapse, storing propagated state");
+                if self.solve_csp() {
+                    return true;
+                }
+                todo!("Restore previous state on failure");
+            }
+        }
+
+        false
+    }
+
     pub fn solve_brute_force(&mut self) -> bool {
         if self.is_complete() {
             return true;
