@@ -145,7 +145,7 @@ impl SudokuBoard {
             for col in 0..SUDOKU_SIZE {
                 if let Tile::Uncollapsed(domain) = &self.board[row][col] {
                     let cur_entropy = domain.get_valid().len();
-                    if cur_entropy < lowest_entropy {
+                    if cur_entropy <= lowest_entropy {
                         lowest_entropy = cur_entropy;
                         lowest_index = (row, col);
                     }
@@ -222,8 +222,9 @@ impl SudokuBoard {
         if self.is_complete() {
             return true;
         }
-
+        
         let (row, col) = self.get_lowest_entropy();
+        println!("({}, {})", row, col);
         
         let valid = match self.board[row][col] {
             Tile::Collapsed(_) => panic!("get_lowest_entropy() should never return a collapsed tile"),
@@ -242,9 +243,9 @@ impl SudokuBoard {
                 if self.solve_csp() {
                     return true;
                 }
+                self.restore_domain(val, collapsed_states);
                 saved_domain.mark_invalid(val);
                 self.board[row][col] = Tile::Uncollapsed(saved_domain);
-                self.restore_domain(val, collapsed_states);
             }
         }
 
