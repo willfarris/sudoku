@@ -215,16 +215,19 @@ impl SudokuBoard {
 
     }
 
-    pub fn solve_csp(&mut self) -> bool {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        self.print(true);
+    pub fn solve_csp(&mut self, steps: &mut u32) -> bool {
+        #[cfg(debug_prints)]
+        {
+            std::thread::sleep(Duration::from_millis(DEBUG_DELAY_MS));
+            self.print(true);
+        }
+        *steps += 1;
         
         if self.is_complete() {
             return true;
         }
         
         let (row, col) = self.get_lowest_entropy();
-        println!("({}, {})", row, col);
         
         let valid = match self.board[row][col] {
             Tile::Collapsed(_) => panic!("get_lowest_entropy() should never return a collapsed tile"),
@@ -233,18 +236,18 @@ impl SudokuBoard {
 
         for val in valid {
             if self.is_valid_assignment(val, row, col) {
-                let mut saved_domain = if let Tile::Uncollapsed(domain) = &self.board[row][col] {
+                let saved_domain = if let Tile::Uncollapsed(domain) = &self.board[row][col] {
                     domain.clone()
                 } else {
                     panic!("tile was uncollapsed, but now it's not: ({}, {})", row, col);
                 };
+                
                 self.board[row][col] = Tile::Collapsed(val);
                 let collapsed_states = self.propagate_collapse(val, row, col);
-                if self.solve_csp() {
+                if self.solve_csp(steps) {
                     return true;
                 }
                 self.restore_domain(val, collapsed_states);
-                saved_domain.mark_invalid(val);
                 self.board[row][col] = Tile::Uncollapsed(saved_domain);
             }
         }
@@ -252,7 +255,13 @@ impl SudokuBoard {
         false
     }
 
-    pub fn solve_brute_force(&mut self) -> bool {
+    pub fn solve_brute_force(&mut self, steps: &mut u32) -> bool {
+        #[cfg(debug_prints)]
+        {
+            std::thread::sleep(Duration::from_millis(DEBUG_DELAY_MS));
+            self.print(true);
+        }
+        *steps += 1;
         if self.is_complete() {
             return true;
         }
@@ -262,18 +271,12 @@ impl SudokuBoard {
                     continue;
                 }
 
-                #[cfg(debug_prints)]
-                {
-                    std::thread::sleep(Duration::from_millis(DEBUG_DELAY_MS));
-                    self.print(true);
-                }
-
                 for s in 1..=SUDOKU_SIZE {
                     //self.board[row][col] = s;
                     if self.is_valid_assignment(s, row, col) {
                         //if self.is_valid() {
                         self.board[row][col] = Tile::Collapsed(s);
-                        if self.solve_brute_force() {
+                        if self.solve_brute_force(steps) {
                             return true;
                         }
                     }

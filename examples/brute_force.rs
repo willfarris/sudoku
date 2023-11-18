@@ -12,8 +12,10 @@ fn main() {
     println!("Before:");
     board.print(false);
 
-    board.solve_brute_force();
+    let mut steps = 0;
+    board.solve_brute_force(&mut steps);
 
     println!("After:");
     board.print(false);
+    println!("Solved in {} steps", steps);
 }
