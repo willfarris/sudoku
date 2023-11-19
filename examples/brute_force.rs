@@ -9,13 +9,8 @@ const TEST_BOARD: [usize; SUDOKU_SIZE * SUDOKU_SIZE] = [
 fn main() {
     let mut board = SudokuBoard::from_array(TEST_BOARD);
 
-    println!("Before:");
-    board.print(false);
-
     let mut steps = 0;
-    board.solve_brute_force(&mut steps);
+    board.solve_brute_force(150, &mut steps);
 
-    println!("After:");
-    board.print(false);
     println!("Solved in {} steps", steps);
 }

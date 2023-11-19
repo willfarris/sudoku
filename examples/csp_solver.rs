@@ -7,15 +7,15 @@ const TEST_BOARD: [usize; SUDOKU_SIZE * SUDOKU_SIZE] = [
 ];
 
 fn main() {
-    let mut board = SudokuBoard::from_array(TEST_BOARD);
 
-    println!("Before:");
-    board.print(false);
-    let mut steps = 0;
-    board.solve_csp(&mut steps);
+    let delay_ms = 50;
 
-    println!("Solved in {} steps", steps);
+    let mut csp_board = SudokuBoard::from_array(TEST_BOARD);
+    let mut csp_steps = 0;
+    csp_board.solve_csp(delay_ms, &mut csp_steps);
 
-    println!("After:");
-    board.print(false);
+    let mut dfs_board = SudokuBoard::from_array(TEST_BOARD);
+    let mut dfs_steps = 0;
+    dfs_board.solve_brute_force(delay_ms, &mut dfs_steps);
+    println!("CSP solved in {} steps\nDFS solved in {} steps", csp_steps, dfs_steps);
 }
