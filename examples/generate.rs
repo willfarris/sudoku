@@ -1,6 +1,6 @@
 use sudoku::*;
 
 fn main() {
-    let mut board = SudokuBoard::generate();
+    let board = SudokuBoard::generate(21);
     board.print(false);
 }

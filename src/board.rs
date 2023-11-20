@@ -1,8 +1,11 @@
+use rand::random;
+
 use crate::tile::{Domain, Tile};
 
 pub const SUDOKU_BASE: usize = 3;
 pub const SUDOKU_SIZE: usize = SUDOKU_BASE * SUDOKU_BASE;
 
+#[derive(Clone)]
 pub struct SudokuBoard {
     board: [[Tile; SUDOKU_SIZE]; SUDOKU_SIZE],
 }
@@ -26,30 +29,55 @@ impl SudokuBoard {
         board.propagate_uncollapsed();
         board
     }
-    
-    fn add_holes(&mut self) {
-      for row in 0..SUDOKU_SIZE {
-          for col in 0..SUDOKU_SIZE {
-            if rand::random::<usize>()%10 < 8 {
-              self.board[row][col] = Tile::default();
+
+    pub fn into_array(&self) -> [usize; SUDOKU_SIZE*SUDOKU_SIZE] {
+        let mut array = [0usize; SUDOKU_SIZE*SUDOKU_SIZE];
+        for row in 0..SUDOKU_SIZE {
+            for col in 0..SUDOKU_SIZE {
+                let index = row*SUDOKU_SIZE + col;
+                array[index] = match self.board[row][col] {
+                    Tile::Collapsed(val) => val,
+                    Tile::Uncollapsed(_) => 0,
+                }
             }
-          }
         }
+        array
+    }
+    
+    fn add_holes(&mut self, num_filled: usize) {
+
+        let num_holes = SUDOKU_SIZE*SUDOKU_SIZE - num_filled;
+        
+        for _ in 0..num_holes { 
+            let mut row = random::<usize>()%SUDOKU_SIZE;
+            let mut col = random::<usize>()%SUDOKU_SIZE;
+            let mut valid = false;
+            while !valid {
+                if let Tile::Collapsed(_) = &self.board[row][col] {
+                    valid = true;
+                } else {
+                    row = random::<usize>()%SUDOKU_SIZE;
+                    col = random::<usize>()%SUDOKU_SIZE;
+                }
+            }
+            self.board[row][col] = Tile::default();
+        }
+
     }
 
-    pub fn generate() -> Self {
+    pub fn generate(num_filled: usize) -> Self {
         let mut board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
         
         let row: usize = rand::random::<usize>()%SUDOKU_SIZE;
         let col: usize = rand::random::<usize>()%SUDOKU_SIZE;
-        let val: usize = rand::random::<usize>()%SUDOKU_SIZE;
+        let val: usize = rand::random::<usize>()%SUDOKU_SIZE + 1;
         
         board[row][col] = Tile::Collapsed(val);
         
         let mut sudoku_board = Self { board };
         sudoku_board.propagate_uncollapsed();
         sudoku_board.solve_csp(0, &mut 0);
-        sudoku_board.add_holes();
+        sudoku_board.add_holes(num_filled);
         
         sudoku_board
     }
