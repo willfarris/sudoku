@@ -26,11 +26,32 @@ impl SudokuBoard {
         board.propagate_uncollapsed();
         board
     }
+    
+    fn add_holes(&mut self) {
+      for row in 0..SUDOKU_SIZE {
+          for col in 0..SUDOKU_SIZE {
+            if rand::random::<usize>()%10 < 8 {
+              self.board[row][col] = Tile::default();
+            }
+          }
+        }
+    }
 
     pub fn generate() -> Self {
-        let board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
-        // TODO: populate board during generation
-        Self { board }
+        let mut board = [[Tile::default(); SUDOKU_SIZE]; SUDOKU_SIZE];
+        
+        let row: usize = rand::random::<usize>()%SUDOKU_SIZE;
+        let col: usize = rand::random::<usize>()%SUDOKU_SIZE;
+        let val: usize = rand::random::<usize>()%SUDOKU_SIZE;
+        
+        board[row][col] = Tile::Collapsed(val);
+        
+        let mut sudoku_board = Self { board };
+        sudoku_board.propagate_uncollapsed();
+        sudoku_board.solve_csp(0, &mut 0);
+        sudoku_board.add_holes();
+        
+        sudoku_board
     }
 
     pub fn is_valid(&self) -> bool {
